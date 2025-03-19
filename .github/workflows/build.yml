@@ -1,0 +1,42 @@
+name: Build
+
+on:
+  pull_request:
+    branches:
+      - main
+  schedule:
+    # Run monthly at midnight on the first day of the month
+    - cron: '0 0 1 * *'
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/bootc/qemu-base
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Metadata
+        uses: docker/metadata-action@v5
+        with:
+          tags: |
+            type=sha,prefix=sha-
+            type=schedule,pattern={{date 'YYYYMMDD'}}
+            type=ref,event=pr
+          flavor: |
+            prefix=stream10
+
+      - name: Build
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          TAGS: ${{ steps.metadata.outputs.tags }}
+        run: |
+          IFS=',' read -r -a tags <<< "$TAGS"
+          tag_args=""
+          for tag in "${tags[@]}"; do
+            tag_args="$tag_args -t $IMAGE_NAME:$tag"
+          done
+
+          podman build -t $IMAGE_NAME $tag_args .
