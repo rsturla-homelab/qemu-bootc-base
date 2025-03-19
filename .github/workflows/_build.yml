@@ -5,7 +5,7 @@ on:
     inputs:
       containerfile:
         description: 'Path to the Containerfile to build'
-        required: true
+        required: false
         type: string
         default: './Containerfile'
       image-name:
@@ -24,7 +24,7 @@ on:
         description: 'The architectures to build for'
         required: false
         type: string
-        default: 'amd64'
+        default: 'amd64 arm64'
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ inputs.image-name }}
@@ -35,15 +35,21 @@ jobs:
     permissions:
       contents: read
     outputs:
-      matrix: ${{ steps.generate-matrix.outputs.matrix }}
+      matrix: ${{ steps.generate-matrix.outputs.MATRIX }}
     steps:
       - name: Generate Matrix
         id: generate-matrix
+        env:
+          PLATFORMS: ${{ inputs.platforms }}
         run: |
           platforms=()
           while IFS= read -r -d '' platform; do
             [[ -n "$platform" ]] && platforms+=("$platform")
           done < <(printf '%s\0' $PLATFORMS)
+
+          for platform in "${platforms[@]}"; do
+            echo "Platform: $platform"
+          done
 
           # Create an empty matrix
           matrix="{\"include\": []}"
@@ -55,6 +61,7 @@ jobs:
           done
 
           # Output the matrix
+          echo "MATRIX=${matrix}"
           MATRIX=$(echo "${matrix}" | jq -c .)
           echo "MATRIX=${MATRIX}" >> $GITHUB_OUTPUT
 
@@ -62,7 +69,7 @@ jobs:
     runs-on: ${{ matrix.platform == 'amd64' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
     needs: generate_matrix
     strategy:
-      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.generate_matrix.outputs.matrix) }}
     permissions:
       contents: read
       packages: write
