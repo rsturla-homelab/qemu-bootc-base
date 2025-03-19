@@ -46,4 +46,13 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Push
-        run: podman image ls
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          TAGS: ${{ steps.generate-tags.outputs.tags }}
+        run: |
+          IFS=' ' read -r -a tags <<< "$TAGS"
+          for tag in "${tags[@]}"; do
+            for i in {1..3}; do
+              podman push $IMAGE_NAME:$tag || sleep $((i*5))
+            done
+          done
