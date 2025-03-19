@@ -1,0 +1,260 @@
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      containerfile:
+        description: 'Path to the Containerfile to build'
+        required: true
+        type: string
+        default: './Containerfile'
+      image-name:
+        description: 'The name of the image to build'
+        required: true
+        type: string
+      os-version:
+        description: 'The version of the OS to build'
+        required: true
+        type: string
+      build-args:
+        description: 'Additional build arguments to pass to the build'
+        required: false
+        type: string
+      platforms:
+        description: 'The architectures to build for'
+        required: false
+        type: string
+        default: 'amd64'
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ inputs.image-name }}
+
+jobs:
+  generate_matrix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.generate-matrix.outputs.matrix }}
+    steps:
+      - name: Generate Matrix
+        id: generate-matrix
+        run: |
+          platforms=()
+          while IFS= read -r -d '' platform; do
+            [[ -n "$platform" ]] && platforms+=("$platform")
+          done < <(printf '%s\0' $PLATFORMS)
+
+          # Create an empty matrix
+          matrix="{\"include\": []}"
+
+          # Iterate over each platform
+          for platform in "${platforms[@]}"; do
+            # Add the platform to the matrix
+            matrix=$(jq ".include += [{\"platform\": \"${platform}\"}]" <<< "${matrix}")
+          done
+
+          # Output the matrix
+          MATRIX=$(echo "${matrix}" | jq -c .)
+          echo "MATRIX=${MATRIX}" >> $GITHUB_OUTPUT
+
+  build:
+    runs-on: ${{ matrix.platform == 'amd64' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
+    needs: generate_matrix
+    strategy:
+      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Start Falco
+        uses: falcosecurity/falco-actions/start@main
+        with:
+          mode: analyze
+          falco-version: '0.40.0'
+          verbose: true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate Tags
+        uses: ./.github/actions/generate-image-tags
+        id: generate-tags
+        with:
+          os-version: stream10
+          is-release: ${{ github.ref == 'refs/heads/main' }}
+          arch: ${{ matrix.platform }}
+
+      - name: Build
+        id: build
+        env:
+          CONTAINERFILE: ${{ inputs.containerfile }}
+          BUILD_ARGS: ${{ inputs.build-args }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+        run: |
+          build_args=""
+          IFS=' ' read -r -a build_args <<< "$BUILD_ARGS"
+          for arg in "${build_args[@]}"; do
+            build_args="$build_args --build-arg $arg"
+          done
+
+          podman build \
+            --iidfile /tmp/image-id \
+            --timestamp=0 \
+            $build_args \
+            -f $CONTAINERFILE \
+            .
+
+          echo "IMAGE_ID=$(cat /tmp/image-id)" >> $GITHUB_OUTPUT
+
+      - name: Login to Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Push
+        env:
+          IMAGE_ID: ${{ steps.build.outputs.IMAGE_ID }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          TAGS: ${{ steps.generate-tags.outputs.tags }}
+        run: |
+          IFS=' ' read -r -a tags <<< "$TAGS"
+          for tag in "${tags[@]}"; do
+            podman push \
+              --digestfile /tmp/digestfile \
+              $IMAGE_ID \
+              $IMAGE_NAME:$tag
+          done
+
+          echo "DIGEST=$(cat /tmp/digestfile)" >> $GITHUB_OUTPUT
+
+      - name: Create Outputs
+        id: create-outputs
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          OS_VERSION: ${{ inputs.os-version }}
+          PLATFORM: ${{ matrix.platform }}
+          DIGEST: ${{ steps.build.outputs.DIGEST }}
+        run: |
+          OUTPUT_ARTIFACT_NAME=$(echo "$IMAGE_NAME-$OS_VERSION-$PLATFORM" | tr '/' '-')
+
+          mkdir -p /tmp/outputs/digests
+          echo "${DIGEST}" > /tmp/outputs/digests/${PLATFORM}
+
+          echo "OUTPUT_ARTIFACT_NAME=${OUTPUT_ARTIFACT_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Upload Output Artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.create-outputs.outputs.OUTPUT_ARTIFACT_NAME }}
+          retention-days: 1
+          if-no-files-found: error
+          path: |
+            /tmp/outputs/digests/*
+
+      - name: Stop Falco
+        uses: falcosecurity/falco-actions/stop@main
+        with:
+          mode: analyze
+          verbose: true
+
+  manifest:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Determine Build Output Name
+        id: artifact-prefix
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          OS_VERSION: ${{ inputs.os-version }}
+        run: |
+          OUTPUT_ARTIFACT_PREFIX=$(echo "$IMAGE_NAME-$OS_VERSION" | tr '/' '-')
+          echo "OUTPUT_ARTIFACT_PREFIX=${OUTPUT_ARTIFACT_PREFIX}" >> $GITHUB_OUTPUT
+
+      - name: Fetch Build Outputs
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        with:
+          pattern: ${{ steps.artifact-prefix.outputs.OUTPUT_ARTIFACT_PREFIX }}*
+          merge-multiple: true
+          path: /tmp/artifacts
+
+      - name: Load Outputs
+        id: load-outputs
+        run: |
+          DIGESTS_JSON=$(jq -n '{}')
+          for digest_file in /tmp/artifacts/*; do
+            # Extract the platform from the file name
+            PLATFORM=$(basename $digest_file)
+            DIGEST=$(cat $digest_file)
+            # Add the platform and digest to the JSON object
+            DIGESTS_JSON=$(echo "$DIGESTS_JSON" | jq --arg key "$PLATFORM" --arg value "$DIGEST" '. + {($key): $value}')
+          done
+          echo "DIGESTS_JSON=$(echo $DIGESTS_JSON | jq -c '.')"
+          echo "DIGESTS_JSON=$(echo $DIGESTS_JSON | jq -c '.')" >> $GITHUB_OUTPUT
+
+      - name: Generate Tags
+        uses: ./.github/actions/generate-image-tags
+        id: generate-tags
+        with:
+          os-version: stream10
+          is-release: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Create Manifest
+        id: create-manifest
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+        run: |
+          podman manifest create ${IMAGE_NAME}
+          echo "MANIFEST=${IMAGE_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Populate Manifest
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          MANIFEST: ${{ steps.create-manifest.outputs.MANIFEST }}
+          DIGESTS_JSON: ${{ steps.load-outputs.outputs.DIGESTS_JSON }}
+          PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          DIGESTS=$(echo "$DIGESTS_JSON" | jq -c '.')
+          # turn the comma separated string into a list
+          platforms=()
+          IFS=',' read -r -a platforms <<< "${PLATFORMS}"
+          for platform in ${platforms[@]}; do
+            digest=$(echo $DIGESTS | jq -r ".$platform")
+            echo "Adding ${IMAGE_NAME}@$digest for $platform"
+            podman manifest add $MANIFEST ${IMAGE_NAME}@$digest --arch $platform
+          done
+
+      - name: Login to Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Push Manifest
+        id: push-manifest
+        env:
+          MANIFEST: ${{ steps.create-manifest.outputs.MANIFEST }}
+          TAGS: ${{ steps.generate-tags.outputs.tags }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+        run: |
+          while IFS=' ' read -ra tag; do
+            podman manifest push --all=false --digestfile=/tmp/digestfile $MANIFEST $IMAGE_NAME:$tag
+          done <<< "$TAGS"
+
+          DIGEST=$(cat /tmp/digestfile)
+          echo "DIGEST=$DIGEST" >> $GITHUB_OUTPUT
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_OUTPUT
+
+  analyze:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Analyze
+        uses: falcosecurity/falco-actions/analyze@main
+        with:
+          falco-version: '0.40.0'

@@ -1,88 +1,13 @@
-name: Build
+name: Build Image
 
 on:
   pull_request:
     branches:
       - main
-  schedule:
-    # Run monthly at midnight on the first day of the month
-    - cron: '0 0 1 * *'
-
-env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/bootc/qemu-base
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      actions: read
-    steps:
-      - name: Start Falco
-        uses: falcosecurity/falco-actions/start@main
-        with:
-          mode: analyze
-          falco-version: '0.39.0'
-          verbose: true
-
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Generate Tags
-        uses: ./.github/actions/generate-image-tags
-        id: generate-tags
-        with:
-          os-version: stream10
-          is-release: ${{ github.ref == 'refs/heads/main' }}
-
-      - name: Build
-        id: build
-        env:
-          IMAGE_NAME: ${{ env.IMAGE_NAME }}
-        run: |
-          podman build \
-            --iidfile /tmp/image-id \
-            --timestamp=0 \
-            $tag_args \
-            .
-
-          echo "IMAGE_ID=$(cat /tmp/image-id)" >> $GITHUB_OUTPUT
-
-      - name: Login to Registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      - name: Push
-        env:
-          IMAGE_ID: ${{ steps.build.outputs.IMAGE_ID }}
-          IMAGE_NAME: ${{ env.IMAGE_NAME }}
-          TAGS: ${{ steps.generate-tags.outputs.tags }}
-        run: |
-          IFS=' ' read -r -a tags <<< "$TAGS"
-          for tag in "${tags[@]}"; do
-            podman push \
-              --digestfile /tmp/digestfile \
-              $IMAGE_ID \
-              $IMAGE_NAME:$tag
-          done
-
-          echo "DIGEST=$(cat /tmp/digestfile)" >> $GITHUB_OUTPUT
-
-      - name: Stop Falco
-        uses: falcosecurity/falco-actions/stop@main
-        with:
-          mode: analyze
-          verbose: true
-
-  analyze:
-    runs-on: ubuntu-latest
-    needs: build
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      - name: Analyze
-        uses: falcosecurity/falco-actions/analyze@main
-        with:
-          falco-version: '0.39.0'
+    uses: ./.github/workflows/_build.yml
+    with:
+      image-name: bootc/qemu-base
+      os-version: stream10
