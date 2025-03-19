@@ -11,6 +11,10 @@ permissions:
   id-token: write
   packages: write
 
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     uses: ./.github/workflows/_build.yml
