@@ -14,24 +14,25 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Metadata
-        uses: docker/metadata-action@v5
+      - name: Generate Tags
+        uses: ./.github/actions/generate-image-tags
+        id: generate-tags
         with:
-          tags: |
-            type=sha,prefix=sha-
-            type=schedule,pattern={{date 'YYYYMMDD'}}
-            type=ref,event=pr
-          flavor: |
-            prefix=stream10
+          os-version: stream10
+          is-release: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Build
         env:
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
-          TAGS: ${{ steps.metadata.outputs.tags }}
+          TAGS: ${{ steps.generate-tags.outputs.tags }}
         run: |
           IFS=' ' read -r -a tags <<< "$TAGS"
           tag_args=""
@@ -40,3 +41,9 @@ jobs:
           done
 
           podman build -t $IMAGE_NAME $tag_args .
+
+      - name: Login to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Push
+        run: podman image ls
