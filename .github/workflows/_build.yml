@@ -24,7 +24,7 @@ on:
         description: 'The architectures to build for'
         required: false
         type: string
-        default: 'amd64 arm64'
+        default: 'amd64'
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ inputs.image-name }}
