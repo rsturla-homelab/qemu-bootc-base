@@ -40,7 +40,11 @@ jobs:
             tag_args="$tag_args -t $IMAGE_NAME:$tag"
           done
 
-          podman build -t $IMAGE_NAME $tag_args .
+          podman build \
+            --timestamp=0 \
+            -t $IMAGE_NAME \
+            $tag_args \
+            .
 
       - name: Login to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
