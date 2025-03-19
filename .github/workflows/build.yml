@@ -18,7 +18,15 @@ jobs:
       contents: read
       packages: write
       id-token: write
+      actions: read
     steps:
+      - name: Start Falco
+        uses: falcosecurity/falco-actions/start@main
+        with:
+          mode: analyze
+          falco-version: '0.39.0'
+          verbose: true
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -30,33 +38,51 @@ jobs:
           is-release: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Build
+        id: build
         env:
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
-          TAGS: ${{ steps.generate-tags.outputs.tags }}
         run: |
-          IFS=' ' read -r -a tags <<< "$TAGS"
-          tag_args=""
-          for tag in "${tags[@]}"; do
-            tag_args="$tag_args -t $IMAGE_NAME:$tag"
-          done
-
           podman build \
+            --iidfile /tmp/image-id \
             --timestamp=0 \
-            -t $IMAGE_NAME \
             $tag_args \
             .
 
-      - name: Login to GitHub Container Registry
+          echo "IMAGE_ID=$(cat /tmp/image-id)" >> $GITHUB_OUTPUT
+
+      - name: Login to Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Push
         env:
+          IMAGE_ID: ${{ steps.build.outputs.IMAGE_ID }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
           TAGS: ${{ steps.generate-tags.outputs.tags }}
         run: |
           IFS=' ' read -r -a tags <<< "$TAGS"
           for tag in "${tags[@]}"; do
-            for i in {1..3}; do
-              podman push $IMAGE_NAME:$tag && break || sleep $((i*5))
-            done
+            podman push \
+              --digestfile /tmp/digestfile \
+              $IMAGE_ID \
+              $IMAGE_NAME:$tag
           done
+
+          echo "DIGEST=$(cat /tmp/digestfile)" >> $GITHUB_OUTPUT
+
+      - name: Stop Falco
+        uses: falcosecurity/falco-actions/stop@main
+        with:
+          mode: analyze
+          verbose: true
+
+  analyze:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Analyze
+        uses: falcosecurity/falco-actions/analyze@main
+        with:
+          falco-version: '0.39.0'
