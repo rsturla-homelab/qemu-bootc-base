@@ -38,13 +38,14 @@ runs:
         GIT_SHA: ${{ github.sha }}
       run: |
         echo "Generating tags for pull request..."
+        SHORT_SHA=$(echo $GIT_SHA | cut -c1-7)
         ARCH_SUFFIX=""
         if [[ "$ARCH" != "" ]]; then
           ARCH_SUFFIX="-$ARCH"
         fi
 
         STABLE_TAG="pr${PR_NUMBER}-${OS_VERSION}${ARCH_SUFFIX}"
-        UNIQUE_TAG="pr${PR_NUMBER}-${OS_VERSION}-${GIT_SHA}${ARCH_SUFFIX}"
+        UNIQUE_TAG="pr${PR_NUMBER}-${OS_VERSION}-${SHORT_SHA}${ARCH_SUFFIX}"
 
         TAGS=(
           $STABLE_TAG
@@ -65,13 +66,14 @@ runs:
         GIT_SHA: ${{ github.sha }}
       run: |
         echo "Generating tags for release..."
+        SHORT_SHA=$(echo $GIT_SHA | cut -c1-7)
         ARCH_SUFFIX=""
         if [[ "$ARCH" != "" ]]; then
           ARCH_SUFFIX="-$ARCH"
         fi
 
         STABLE_TAG="${OS_VERSION}${ARCH_SUFFIX}"
-        UNIQUE_TAG="${OS_VERSION}-${GIT_SHA}${ARCH_SUFFIX}"
+        UNIQUE_TAG="${OS_VERSION}-${SHORT_SHA}${ARCH_SUFFIX}"
         DATE_TAG="${OS_VERSION}-$(date '+%Y%m%d')${ARCH_SUFFIX}"
 
         TAGS=(
