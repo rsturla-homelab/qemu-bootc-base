@@ -113,6 +113,7 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Push
+        id: push
         env:
           IMAGE_ID: ${{ steps.build.outputs.IMAGE_ID }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
@@ -134,7 +135,7 @@ jobs:
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
           OS_VERSION: ${{ inputs.os-version }}
           PLATFORM: ${{ matrix.platform }}
-          DIGEST: ${{ steps.build.outputs.DIGEST }}
+          DIGEST: ${{ steps.push.outputs.DIGEST }}
         run: |
           OUTPUT_ARTIFACT_NAME=$(echo "$IMAGE_NAME-$OS_VERSION-$PLATFORM" | tr '/' '-')
 
