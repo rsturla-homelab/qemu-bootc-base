@@ -33,7 +33,7 @@ jobs:
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
           TAGS: ${{ steps.metadata.outputs.tags }}
         run: |
-          IFS=',' read -r -a tags <<< "$TAGS"
+          IFS=' ' read -r -a tags <<< "$TAGS"
           tag_args=""
           for tag in "${tags[@]}"; do
             tag_args="$tag_args -t $IMAGE_NAME:$tag"
