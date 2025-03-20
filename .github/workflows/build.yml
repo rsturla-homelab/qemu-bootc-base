@@ -27,6 +27,7 @@ concurrency:
 jobs:
   build:
     uses: ./.github/workflows/_build.yml
+    secrets: inherit
     with:
       image-name: bootc/qemu/centos-base
       os-version: stream10

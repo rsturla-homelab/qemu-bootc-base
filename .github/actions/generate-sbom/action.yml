@@ -5,6 +5,12 @@ inputs:
   image-ref:
     description: 'The reference to the OCI image to generate an SBOM for'
     required: true
+  cosign-private-key:
+    description: 'The private key to use for signing the SBOM'
+    required: true
+  cosign-key-passphrase:
+    description: 'The passphrase for the private key'
+    required: true
 
 outputs:
   sbom-path:
@@ -29,3 +35,23 @@ runs:
         DESTINATION=$(mktemp -d)/sbom.json
         $SYFT_CMD $IMAGE_REF -o spdx-json=$DESTINATION
         echo "OUTPUT_PATH=$DESTINATION" >> $GITHUB_OUTPUT
+
+    - name: Setup Cosign
+      id: setup-cosign
+      uses: sigstore/cosign-installer@v3
+
+    - name: Attach SBOM
+      id: attach-sbom
+      shell: bash
+      env:
+        SBOM_PATH: ${{ steps.generate-sbom.outputs.OUTPUT_PATH }}
+        COSIGN_PRIVATE_KEY: ${{ inputs.cosign-private-key }}
+        COSIGN_PASSWORD: ${{ inputs.cosign-key-passphrase }}
+        IMAGE_REF: ${{ inputs.image-ref }}
+      run: |
+        cd $(dirname $SBOM_PATH)
+        cosign attest -y \
+          --predicate ./sbom.json \
+          --type spdxjson \
+          --key env://COSIGN_PRIVATE_KEY \
+          $IMAGE_REF

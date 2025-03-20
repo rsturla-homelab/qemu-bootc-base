@@ -19,5 +19,4 @@ runs:
       env:
         SBOM_PATH: ${{ inputs.sbom-path }}
         GRYPE_CMD: ${{ steps.setup-grype.outputs.cmd }}
-      run: |
-        $GRYPE_CMD sbom:$SBOM_PATH
+      run: $GRYPE_CMD sbom:$SBOM_PATH
