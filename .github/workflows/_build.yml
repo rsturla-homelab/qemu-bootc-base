@@ -309,6 +309,8 @@ jobs:
         id: generate-sbom
         with:
           image-ref: ${{ env.IMAGE_NAME }}@${{ steps.load-outputs.outputs.DIGEST }}
+          cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          cosign-key-passphrase: ${{ secrets.COSIGN_PASSWORD }}
 
       - name: Scan SBOM
         uses: ./.github/actions/scan-sbom
