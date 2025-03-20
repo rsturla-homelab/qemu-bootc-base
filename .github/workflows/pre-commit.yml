@@ -20,4 +20,4 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Run pre-commit
-        uses: ./.github/actions/run-pre-commit
+        uses: rsturla-homelab/actions/run-pre-commit@main
