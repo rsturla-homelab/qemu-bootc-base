@@ -1,0 +1,22 @@
+name: Scan SBOM
+description: Scan an SBOM for vulnerabilities
+
+inputs:
+  sbom-path:
+    description: 'The path to the SBOM to scan'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Grype
+      id: setup-grype
+      uses: anchore/scan-action/download-grype@v6
+
+    - name: Scan SBOM
+      id: scan-sbom
+      shell: bash
+      env:
+        SBOM_PATH: ${{ inputs.sbom-path }}
+        GRYPE_CMD: ${{ steps.setup-grype.outputs.cmd }}
+      run: $GRYPE_CMD sbom:$SBOM_PATH

@@ -1,0 +1,31 @@
+name: Sign OCI Image
+description: Signs an OCI image using cosign
+
+inputs:
+  image-ref:
+    description: 'The reference to the OCI image to generate an SBOM for'
+    required: true
+  cosign-private-key:
+    description: 'The private key to use for signing the SBOM'
+    required: true
+  cosign-key-passphrase:
+    description: 'The passphrase for the private key'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Cosign
+      uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
+
+    - name: Sign OCI Image
+      shell: bash
+      run: |
+        cosign sign -y \
+          --key env://COSIGN_PRIVATE_KEY \
+          --recursive \
+          $IMAGE_REF
+      env:
+        IMAGE_REF: ${{ inputs.image-ref }}
+        COSIGN_PRIVATE_KEY: ${{ inputs.cosign-private-key }}
+        COSIGN_PASSWORD: ${{ inputs.cosign-key-passphrase }}
