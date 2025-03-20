@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - main
+  schedule:
+    # On the 1st and 15th of the month at midnight
+    - cron: '0 0 1,15 * *'
 
 permissions:
   contents: read
@@ -19,5 +22,5 @@ jobs:
   build:
     uses: ./.github/workflows/_build.yml
     with:
-      image-name: bootc/qemu/base
+      image-name: bootc/qemu/centos-base
       os-version: stream10
