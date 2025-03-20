@@ -1,4 +1,4 @@
-FROM quay.io/centos-bootc/centos-bootc:stream10@sha256:eec9efeec136ed18f8b9a7210ba0fab8cca3559f1d74edd17ca8e2264ef227a5
+FROM quay.io/centos-bootc/centos-bootc:stream10@sha256:da23dce4caac2071726f2542e873084de4e174ea968c2ae7eaf2a720e3c3dc84
 
 COPY files/ /
 
