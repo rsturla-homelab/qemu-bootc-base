@@ -19,5 +19,5 @@ jobs:
   build:
     uses: ./.github/workflows/_build.yml
     with:
-      image-name: bootc/qemu-base
+      image-name: bootc/qemu/base
       os-version: stream10
