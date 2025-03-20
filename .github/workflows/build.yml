@@ -1,0 +1,26 @@
+name: Build Image
+
+on:
+  pull_request:
+    branches:
+      - main
+  schedule:
+    # On the 1st and 15th of the month at midnight
+    - cron: '0 0 1,15 * *'
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+  packages: write
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build.yml
+    with:
+      image-name: bootc/qemu/centos-base
+      os-version: stream10

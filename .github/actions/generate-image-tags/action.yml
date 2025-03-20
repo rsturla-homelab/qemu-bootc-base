@@ -1,0 +1,109 @@
+name: Generate Image Tags
+description: Generate OCI image tags
+
+inputs:
+  os-version:
+    description: 'The version of the base OS'
+    required: true
+  is-release:
+    description: 'Whether this is a release build'
+    required: true
+    default: 'false'
+  arch:
+    description: 'The architecture of the image'
+    required: false
+
+outputs:
+  tags:
+    description: 'The generated tags for the OCI image'
+    value: ${{ steps.set-outputs.outputs.TAGS }}
+  unique-tag:
+    description: 'The unique tag for the OCI image'
+    value: ${{ steps.set-outputs.outputs.UNIQUE_TAG }}
+  stable-tag:
+    description: 'The stable tag for the OCI image'
+    value: ${{ steps.set-outputs.outputs.STABLE_TAG }}
+
+runs:
+  using: composite
+  steps:
+    - name: Generate Tags (non-release)
+      if: inputs.is-release == 'false'
+      id: generate-tags-non-release
+      shell: bash
+      env:
+        OS_VERSION: ${{ inputs.os-version }}
+        ARCH: ${{ inputs.arch }}
+        PR_NUMBER: ${{ github.event.number }}
+        GIT_SHA: ${{ github.sha }}
+      run: |
+        echo "Generating tags for pull request..."
+        SHORT_SHA=$(echo $GIT_SHA | cut -c1-7)
+        ARCH_SUFFIX=""
+        if [[ "$ARCH" != "" ]]; then
+          ARCH_SUFFIX="-$ARCH"
+        fi
+
+        STABLE_TAG="pr${PR_NUMBER}-${OS_VERSION}${ARCH_SUFFIX}"
+        UNIQUE_TAG="pr${PR_NUMBER}-${OS_VERSION}-${SHORT_SHA}${ARCH_SUFFIX}"
+
+        TAGS=(
+          $STABLE_TAG
+          $UNIQUE_TAG
+        )
+
+        echo "TAGS=${TAGS[*]}" >> $GITHUB_OUTPUT
+        echo "STABLE_TAG=$STABLE_TAG" >> $GITHUB_OUTPUT
+        echo "UNIQUE_TAG=$UNIQUE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Generate Tags (release)
+      if: inputs.is-release == 'true'
+      id: generate-tags-release
+      shell: bash
+      env:
+        OS_VERSION: ${{ inputs.os-version }}
+        ARCH: ${{ inputs.arch }}
+        GIT_SHA: ${{ github.sha }}
+      run: |
+        echo "Generating tags for release..."
+        SHORT_SHA=$(echo $GIT_SHA | cut -c1-7)
+        ARCH_SUFFIX=""
+        if [[ "$ARCH" != "" ]]; then
+          ARCH_SUFFIX="-$ARCH"
+        fi
+
+        STABLE_TAG="${OS_VERSION}${ARCH_SUFFIX}"
+        UNIQUE_TAG="${OS_VERSION}-${SHORT_SHA}${ARCH_SUFFIX}"
+        DATE_TAG="${OS_VERSION}-$(date '+%Y%m%d')${ARCH_SUFFIX}"
+
+        TAGS=(
+          $STABLE_TAG
+          $UNIQUE_TAG
+          $DATE_TAG
+        )
+
+        echo "TAGS=${TAGS[*]}" >> $GITHUB_OUTPUT
+        echo "STABLE_TAG=$STABLE_TAG" >> $GITHUB_OUTPUT
+        echo "UNIQUE_TAG=$UNIQUE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Set Outputs
+      id: set-outputs
+      shell: bash
+      env:
+        IS_RELEASE: ${{ inputs.is-release }}
+        TAGS_NON_RELEASE: ${{ steps.generate-tags-non-release.outputs.TAGS }}
+        TAGS_RELEASE: ${{ steps.generate-tags-release.outputs.TAGS }}
+        UNIQUE_TAG_NON_RELEASE: ${{ steps.generate-tags-non-release.outputs.UNIQUE_TAG }}
+        UNIQUE_TAG_RELEASE: ${{ steps.generate-tags-release.outputs.UNIQUE_TAG }}
+        STABLE_TAG_NON_RELEASE: ${{ steps.generate-tags-non-release.outputs.STABLE_TAG }}
+        STABLE_TAG_RELEASE: ${{ steps.generate-tags-release.outputs.STABLE_TAG }}
+      run: |
+        if [[ "$IS_RELEASE" == "true" ]]; then
+          echo "TAGS=${TAGS_RELEASE}" >> $GITHUB_OUTPUT
+          echo "UNIQUE_TAG=${UNIQUE_TAG_RELEASE}" >> $GITHUB_OUTPUT
+          echo "STABLE_TAG=${STABLE_TAG_RELEASE}" >> $GITHUB_OUTPUT
+        else
+          echo "TAGS=${TAGS_NON_RELEASE}" >> $GITHUB_OUTPUT
+          echo "UNIQUE_TAG=${UNIQUE_TAG_NON_RELEASE}" >> $GITHUB_OUTPUT
+          echo "STABLE_TAG=${STABLE_TAG_NON_RELEASE}" >> $GITHUB_OUTPUT
+        fi
