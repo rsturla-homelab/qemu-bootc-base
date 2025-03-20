@@ -304,6 +304,13 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
           cat ${XDG_RUNTIME_DIR}/containers/auth.json > ~/.docker/config.json
 
+      - name: Pull Image
+        id: pull-image
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          DIGEST: ${{ steps.load-outputs.outputs.DIGEST }}
+        run: docker pull $IMAGE_NAME@$DIGEST
+
       - name: Generate SBOM
         uses: ./.github/actions/generate-sbom
         id: generate-sbom
