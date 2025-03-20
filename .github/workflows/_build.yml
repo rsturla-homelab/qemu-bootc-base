@@ -284,21 +284,11 @@ jobs:
         env:
           PLATFORM: ${{ matrix.platform }}
         run: |
-          DIGESTS_JSON=$(jq -n '{}')
-          for digest_file in /tmp/artifacts/*; do
-            # Extract the platform from the file name
-            PLATFORM=$(basename $digest_file)
-            DIGEST=$(cat $digest_file)
-            # Add the platform and digest to the JSON object
-            DIGESTS_JSON=$(echo "$DIGESTS_JSON" | jq --arg key "$PLATFORM" --arg value "$DIGEST" '. + {($key): $value}')
-          done
-          echo "DIGESTS_JSON=$(echo $DIGESTS_JSON | jq -c '.')"
-          echo "DIGESTS_JSON=$(echo $DIGESTS_JSON | jq -c '.')" >> $GITHUB_OUTPUT
-          echo "DIGEST=$(echo $DIGESTS_JSON | jq -r '.[\"${PLATFORM}\"]')"
-          echo "DIGEST=$(echo $DIGESTS_JSON | jq -r '.[\"${PLATFORM}\"]')" >> $GITHUB_OUTPUT
+          DIGEST=$(cat /tmp/artifacts/${PLATFORM})
+          echo "DIGEST=${DIGEST}" >> $GITHUB_OUTPUT
 
       - name: Generate SBOM
         uses: ./.github/actions/generate-sbom
         id: generate-sbom
         with:
-          image-ref: ${{ env.IMAGE_NAME }}:${{ steps.load-outputs.outputs.DIGEST }}
+          image-ref: ${{ env.IMAGE_NAME }}@${{ steps.load-outputs.outputs.DIGEST }}
