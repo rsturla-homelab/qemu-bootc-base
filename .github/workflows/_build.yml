@@ -88,7 +88,9 @@ jobs:
           arch: ${{ matrix.platform }}
 
       - name: Login to Registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+          cat ${XDG_RUNTIME_DIR}/containers/auth.json > ~/.docker/config.json
 
       - name: Build
         id: build
@@ -228,7 +230,9 @@ jobs:
           done
 
       - name: Login to Registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+          cat ${XDG_RUNTIME_DIR}/containers/auth.json > ~/.docker/config.json
 
       - name: Push Manifest
         id: push-manifest
@@ -294,6 +298,11 @@ jobs:
         run: |
           DIGEST=$(cat /tmp/artifacts/${PLATFORM})
           echo "DIGEST=${DIGEST}" >> $GITHUB_OUTPUT
+
+      - name: Login to Registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+          cat ${XDG_RUNTIME_DIR}/containers/auth.json > ~/.docker/config.json
 
       - name: Generate SBOM
         uses: ./.github/actions/generate-sbom
