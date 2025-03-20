@@ -88,6 +88,9 @@ jobs:
           is-release: ${{ github.ref == 'refs/heads/main' }}
           arch: ${{ matrix.platform }}
 
+      - name: Login to Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+
       - name: Build
         id: build
         env:
@@ -114,9 +117,6 @@ jobs:
 
           echo "IMAGE_ID=$(cat /tmp/image-id)" >> $GITHUB_OUTPUT
 
-      - name: Login to Registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
-
       - name: Push
         id: push
         env:
@@ -129,7 +129,7 @@ jobs:
             podman push \
               --digestfile /tmp/digestfile \
               $IMAGE_ID \
-              $IMAGE_NAME:$()
+              $IMAGE_NAME:$tag
           done
 
           echo "DIGEST=$(cat /tmp/digestfile)" >> $GITHUB_OUTPUT
