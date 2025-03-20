@@ -28,7 +28,6 @@ on:
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ inputs.image-name }}
-  CACHE_NAME: ghcr.io/${{ github.repository_owner }}/cache
 
 jobs:
   generate_matrix:
@@ -97,7 +96,6 @@ jobs:
           CONTAINERFILE: ${{ inputs.containerfile }}
           BUILD_ARGS: ${{ inputs.build-args }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
-          CACHE_NAME: ${{ env.CACHE_NAME }}
         run: |
           build_args=""
           IFS=' ' read -r -a build_args <<< "$BUILD_ARGS"
@@ -108,9 +106,6 @@ jobs:
           podman build \
             --iidfile /tmp/image-id \
             --timestamp=0 \
-            --cache-to=$CACHE_NAME \
-            --cache-from=$CACHE_NAME \
-            --cache-ttl=24h \
             $build_args \
             -f $CONTAINERFILE \
             .
