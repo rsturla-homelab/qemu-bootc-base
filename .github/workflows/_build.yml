@@ -237,9 +237,10 @@ jobs:
           TAGS: ${{ steps.generate-tags.outputs.tags }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
         run: |
-          while IFS=' ' read -ra tag; do
-            podman manifest push --all=false --digestfile=/tmp/digestfile $MANIFEST $IMAGE_NAME:$tag
-          done <<< "$TAGS"
+          IFS=' ' read -ra tags <<< "$TAGS"
+          for tag in "${tags[@]}"; do
+              podman manifest push --all=false --digestfile=/tmp/digestfile "$MANIFEST" "$IMAGE_NAME:$tag"
+          done
 
           DIGEST=$(cat /tmp/digestfile)
           echo "DIGEST=$DIGEST" >> $GITHUB_OUTPUT
