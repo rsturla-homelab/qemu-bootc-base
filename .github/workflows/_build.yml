@@ -80,7 +80,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Generate Tags
-        uses: ./.github/actions/generate-image-tags
+        uses: rsturla-homelab/actions/generate-image-tags@main
         id: generate-tags
         with:
           os-version: stream10
@@ -198,7 +198,7 @@ jobs:
           echo "DIGESTS_JSON=$(echo $DIGESTS_JSON | jq -c '.')" >> $GITHUB_OUTPUT
 
       - name: Generate Tags
-        uses: ./.github/actions/generate-image-tags
+        uses: rsturla-homelab/actions/generate-image-tags@main
         id: generate-tags
         with:
           os-version: stream10
@@ -252,7 +252,7 @@ jobs:
 
       - name: Sign Manifest
         id: sign-manifest
-        uses: ./.github/actions/sign-image
+        uses: rsturla-homelab/actions/sign-image@main
         with:
           image-ref: ${{ steps.push-manifest.outputs.IMAGE_NAME }}@${{ steps.push-manifest.outputs.DIGEST }}
           cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
@@ -312,7 +312,7 @@ jobs:
         run: docker pull $IMAGE_NAME@$DIGEST
 
       - name: Generate SBOM
-        uses: ./.github/actions/generate-sbom
+        uses: rsturla-homelab/actions/generate-sbom@main
         id: generate-sbom
         with:
           image-ref: ${{ env.IMAGE_NAME }}@${{ steps.load-outputs.outputs.DIGEST }}
@@ -320,6 +320,6 @@ jobs:
           cosign-key-passphrase: ${{ secrets.COSIGN_PASSWORD }}
 
       - name: Scan SBOM
-        uses: ./.github/actions/scan-sbom
+        uses: rsturla-homelab/actions/scan-sbom@main
         with:
           sbom-path: ${{ steps.generate-sbom.outputs.sbom-path }}
