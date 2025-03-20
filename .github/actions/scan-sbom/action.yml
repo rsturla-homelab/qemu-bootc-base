@@ -11,7 +11,7 @@ runs:
   steps:
     - name: Setup Grype
       id: setup-grype
-      uses: anchore/scan-action/download-grype@v6
+      uses: anchore/scan-action/download-grype@7c05671ae9be166aeb155bad2d7df9121823df32 # v6
 
     - name: Scan SBOM
       id: scan-sbom
