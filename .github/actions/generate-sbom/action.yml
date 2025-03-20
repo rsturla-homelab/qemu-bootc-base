@@ -25,7 +25,7 @@ runs:
         IMAGE_REF: ${{ inputs.image-ref }}
         SYFT_CMD: ${{ steps.setup-syft.outputs.cmd }}
       run: |
-        systemctl start podman.socket
-        DESTINATION=$(mktmp -d)/sbom.json
-        $SYFT_CMD $IMAGE_REF -o $DESTINATION
+        systemctl start --user podman.socket
+        DESTINATION=$(mktemp -d)/sbom.json
+        $SYFT_CMD $IMAGE_REF -o spdx-json=$DESTINATION
         echo "OUTPUT_PATH=$DESTINATION" >> $GITHUB_OUTPUT
