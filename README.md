@@ -1,3 +1,3 @@
-# bootc-qemu-centos-base
+# bootc-centos-base
 
-This repository contains the base centos bootc image for QEMU VMs.
+This repository contains the base centos bootc image.

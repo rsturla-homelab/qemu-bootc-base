@@ -28,6 +28,10 @@ jobs:
   build:
     uses: ./.github/workflows/_build.yml
     secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [qemu]
     with:
-      image-name: bootc/qemu/centos-base
+      image-name: bootc/${{ matrix.target }}/centos-base
       os-version: stream10
