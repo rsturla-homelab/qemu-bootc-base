@@ -7,18 +7,14 @@ RUN --mount=type=cache,target=/var/cache/dnf \
   dnf -y install 'dnf-command(versionlock)' && \
   dnf versionlock add $(rpm -qa --queryformat '%{NAME}-%{VERSION}-%{RELEASE}\n' kernel*) \
   && \
-  dnf -y remove \
-  subscription-manager* \
+  dnf -y remove subscription-manager* \
   && \
-  dnf -y install \
-  cloud-init \
-  nftables \
-  epel-release \
+  dnf -y install cloud-init nftables epel-release \
   && \
   systemctl enable cloud-init.service && \
   systemctl enable nftables.service
 
-# Configure (harden) image
+# Harden image
 RUN --mount=type=cache,target=/var/cache/dnf \
   authselect select local with-faillock --force \
   && \
@@ -27,12 +23,10 @@ RUN --mount=type=cache,target=/var/cache/dnf \
   dnf install -y audit && \
   systemctl enable auditd.service
 
+
 FROM base AS qemu
 
-COPY files/qemu/ /
-
-# Virtualization tools (KVM)
+# Virtualization tools
 RUN --mount=type=cache,target=/var/cache/dnf \
-  dnf install -y \
-  qemu-guest-agent && \
+  dnf install -y qemu-guest-agent && \
   systemctl enable qemu-guest-agent.service
