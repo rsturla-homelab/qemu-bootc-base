@@ -25,6 +25,10 @@ on:
         required: false
         type: string
         default: 'amd64'
+      target:
+        description: 'The Containerfile target to build'
+        required: false
+        type: string
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ inputs.image-name }}
@@ -98,12 +102,17 @@ jobs:
           CONTAINERFILE: ${{ inputs.containerfile }}
           BUILD_ARGS: ${{ inputs.build-args }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          TARGET: ${{ inputs.target }}
         run: |
           build_args=""
           IFS=' ' read -r -a build_args <<< "$BUILD_ARGS"
           for arg in "${build_args[@]}"; do
             build_args="$build_args --build-arg $arg"
           done
+
+          if [[ -n "${TARGET}" ]]; then
+            build_args="$build_args --target ${TARGET}"
+          fi
 
           podman build \
             --iidfile /tmp/image-id \
