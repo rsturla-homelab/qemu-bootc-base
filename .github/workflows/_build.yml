@@ -97,12 +97,6 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
           cat ${XDG_RUNTIME_DIR}/containers/auth.json > ~/.docker/config.json
 
-      - name: Install Podman
-        run: |
-          echo 'deb http://azure.archive.ubuntu.com/ubuntu plucky universe main' | sudo tee /etc/apt/sources.list.d/plucky.list
-          sudo apt update
-          sudo apt install -y crun/plucky podman/plucky
-
       - name: Build
         id: build
         env:
