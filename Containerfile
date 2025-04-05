@@ -1,4 +1,7 @@
-FROM quay.io/centos-bootc/centos-bootc:stream10@sha256:3765fecf1b46b686a139198f1a6a1da4f4daf33ff44ac05840bda1e09a8257e2 AS base
+ARG BASE_IMAGE_NAME=quay.io/centos-bootc/centos-bootc
+ARG BASE_IMAGE_TAG=stream10
+ARG BASE_IMAGE_DIGEST=sha256:3765fecf1b46b686a139198f1a6a1da4f4daf33ff44ac05840bda1e09a8257e2
+FROM ${BASE_IMAGE_NAME}:${BASE_IMAGE_TAG}@${BASE_IMAGE_DIGEST} AS base
 
 COPY files/base/ /
 
