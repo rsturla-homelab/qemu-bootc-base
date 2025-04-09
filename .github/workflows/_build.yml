@@ -162,7 +162,7 @@ jobs:
           fi
 
           if [[ -n "${BASE_IMAGE_REGISTRY}" ]]; then
-            build_args="$build_args --build-arg BASE_IMAGE=${BASE_IMAGE_REGISTRY}:${BASE_IMAGE_TAG}@${BASE_IMAGE_DIGEST}"
+            build_args="$build_args --build-arg BASE_IMAGE_REGISTRY=${BASE_IMAGE_REGISTRY}"
           fi
           if [[ -n "${BASE_IMAGE_TAG}" ]]; then
             build_args="$build_args --build-arg BASE_IMAGE_TAG=${BASE_IMAGE_TAG}"
