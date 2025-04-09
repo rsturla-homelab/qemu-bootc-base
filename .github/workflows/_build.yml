@@ -29,12 +29,13 @@ on:
         description: 'The Containerfile target to build'
         required: false
         type: string
-      base-image-name:
-        description: 'The base image name to use for the build'
+      base-image-versions-file:
+        description: 'The path to the base image version file'
         required: false
         type: string
-      base-image-tag:
-        description: 'The base image version (tag) to use for the build'
+        default: './image-versions.yaml'
+      base-image-name:
+        description: 'The base image selector to use'
         required: false
         type: string
 
@@ -100,28 +101,19 @@ jobs:
           is-release: ${{ github.ref == 'refs/heads/main' }}
           arch: ${{ matrix.platform }}
 
-# images:
-#   - name: centos-bootc-stream10
-#     image: quay.io/centos-bootc/centos-bootc
-#     version: stream10
-#     digest: sha256:3765fecf1b46b686a139198f1a6a1da4f4daf33ff44ac05840bda1e09a8257e2
-
-
       - name: Query OCI Image Digest
         if: ${{ inputs.base-image-name != '' }}
-        id: query-oci-image-digest
+        id: query-base-image
         env:
-          IMAGE_VERSION_FILE: ./image-versions.yaml
+          IMAGE_VERSION_FILE: ${{ inputs.base-image-versions-file }}
           BASE_IMAGE_NAME: ${{ inputs.base-image-name }}
-          BASE_IMAGE_TAG: ${{ inputs.base-image-tag }}
-          OS_VERSION: ${{ inputs.os-version }}
         run: |
-          if [ -n "${BASE_IMAGE_TAG}" ]; then
-            BASE_IMAGE_TAG=${OS_VERSION}
-          fi
-
           if [ -f "$IMAGE_VERSION_FILE" ]; then
-            DIGEST=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\") | select(.version == \"$BASE_IMAGE_TAG\") | .digest" $IMAGE_VERSION_FILE)
+            IMAGE=VERSION_FILE=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\")) | .image" $IMAGE_VERSION_FILE)
+            TAG=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\")) | .tag" $IMAGE_VERSION_FILE)
+            DIGEST=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\")) | .digest" $IMAGE_VERSION_FILE)
+            echo "IMAGE=${IMAGE}" >> $GITHUB_OUTPUT
+            echo "TAG=${TAG}" >> $GITHUB_OUTPUT
             echo "DIGEST=${DIGEST}" >> $GITHUB_OUTPUT
           else
             echo "File not found: $IMAGE_VERSION_FILE"
@@ -140,9 +132,9 @@ jobs:
           BUILD_ARGS: ${{ inputs.build-args }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
           TARGET: ${{ inputs.target }}
-          BASE_IMAGE_NAME: ${{ inputs.base-image-name }}
-          BASE_IMAGE_TAG: ${{ inputs.base-image-tag }}
-          BASE_IMAGE_DIGEST: ${{ steps.query-oci-image-digest.outputs.DIGEST }}
+          BASE_IMAGE_REGISTRY: ${{ steps.query-base-image.outputs.IMAGE }}
+          BASE_IMAGE_TAG: ${{ steps.query-base-image.outputs.TAG }}
+          BASE_IMAGE_DIGEST: ${{ steps.query-base-image.outputs.DIGEST }}
         run: |
           build_args=""
           IFS=' ' read -r -a build_args <<< "$BUILD_ARGS"
@@ -154,15 +146,14 @@ jobs:
             build_args="$build_args --target ${TARGET}"
           fi
 
-          if [[ -n "${BASE_IMAGE_NAME}" ]]; then
-            build_args="$build_args --build-arg BASE_IMAGE_NAME=${BASE_IMAGE_NAME}"
-
-            if [[ -n "${BASE_IMAGE_TAG}" ]]; then
-              build_args="$build_args --build-arg BASE_IMAGE_TAG=${BASE_IMAGE_TAG}"
-            fi
-            if [[ -n "${BASE_IMAGE_DIGEST}" ]]; then
-              build_args="$build_args --build-arg BASE_IMAGE_DIGEST=${BASE_IMAGE_DIGEST}"
-            fi
+          if [[ -n "${BASE_IMAGE_REGISTRY}" ]]; then
+            build_args="$build_args --build-arg BASE_IMAGE=${BASE_IMAGE_REGISTRY}:${BASE_IMAGE_TAG}@${BASE_IMAGE_DIGEST}"
+          fi
+          if [[ -n "${BASE_IMAGE_TAG}" ]]; then
+            build_args="$build_args --build-arg BASE_IMAGE_TAG=${BASE_IMAGE_TAG}"
+          fi
+          if [[ -n "${BASE_IMAGE_DIGEST}" ]]; then
+            build_args="$build_args --build-arg BASE_IMAGE_DIGEST=${BASE_IMAGE_DIGEST}"
           fi
 
           podman build \
