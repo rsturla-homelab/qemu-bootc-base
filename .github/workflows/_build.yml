@@ -108,7 +108,7 @@ jobs:
           IMAGE_VERSION_FILE: ${{ inputs.base-image-versions-file }}
           BASE_IMAGE_NAME: ${{ inputs.base-image-name }}
         run: |
-          if [ -f "$IMAGE_VERSION_FILE" ]; then
+          if [[ -f "$IMAGE_VERSION_FILE" ]]; then
             IMAGE=VERSION_FILE=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\")) | .image" $IMAGE_VERSION_FILE)
             TAG=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\")) | .tag" $IMAGE_VERSION_FILE)
             DIGEST=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\")) | .digest" $IMAGE_VERSION_FILE)
