@@ -109,9 +109,9 @@ jobs:
           BASE_IMAGE_NAME: ${{ inputs.base-image-name }}
         run: |
           if [[ -f "$IMAGE_VERSION_FILE" ]]; then
-            IMAGE=VERSION_FILE=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\")) | .image" $IMAGE_VERSION_FILE)
-            TAG=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\")) | .tag" $IMAGE_VERSION_FILE)
-            DIGEST=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\")) | .digest" $IMAGE_VERSION_FILE)
+            IMAGE=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\") | .image" $IMAGE_VERSION_FILE)
+            TAG=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\") | .tag" $IMAGE_VERSION_FILE)
+            DIGEST=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\") | .digest" $IMAGE_VERSION_FILE)
             echo "IMAGE=${IMAGE}" >> $GITHUB_OUTPUT
             echo "TAG=${TAG}" >> $GITHUB_OUTPUT
             echo "DIGEST=${DIGEST}" >> $GITHUB_OUTPUT
