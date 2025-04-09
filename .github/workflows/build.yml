@@ -36,4 +36,4 @@ jobs:
       image-name: bootc/${{ matrix.target }}/centos-base
       os-version: stream10
       target: ${{ matrix.target }}
-      base-image-name: quay.io/centos-bootc/centos-bootc
+      base-image-name: centos-stream10

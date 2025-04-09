@@ -110,13 +110,22 @@ jobs:
         run: |
           if [[ -f "$IMAGE_VERSION_FILE" ]]; then
             IMAGE=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\") | .image" $IMAGE_VERSION_FILE)
-            echo "Found image: $IMAGE"
+            if [[ -z "$IMAGE" ]]; then
+              echo "Image not found in $IMAGE_VERSION_FILE"
+              exit 1
+            fi
 
             TAG=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\") | .tag" $IMAGE_VERSION_FILE)
-            echo "Found tag: $TAG"
+            if [[ -z "$TAG" ]]; then
+              echo "Tag not found in $IMAGE_VERSION_FILE"
+              exit 1
+            fi
 
             DIGEST=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\") | .digest" $IMAGE_VERSION_FILE)
-            echo "Found digest: $DIGEST"
+            if [[ -z "$DIGEST" ]]; then
+              echo "Digest not found in $IMAGE_VERSION_FILE"
+              exit 1
+            fi
 
             echo "IMAGE=${IMAGE}" >> $GITHUB_OUTPUT
             echo "TAG=${TAG}" >> $GITHUB_OUTPUT
