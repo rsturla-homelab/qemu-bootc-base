@@ -1,4 +1,4 @@
-FROM quay.io/centos-bootc/centos-bootc:stream10@sha256:3765fecf1b46b686a139198f1a6a1da4f4daf33ff44ac05840bda1e09a8257e2 AS base
+FROM quay.io/centos-bootc/centos-bootc:stream10@sha256:9dc412a92cb1ba4c51c02b9526e54e04daa405cd237b1c26bfe9cc0dac6d78b8 AS base
 
 COPY files/base/ /
 
