@@ -412,17 +412,15 @@ jobs:
             COMPRESSED_SBOM="${SBOM_FILE}.zst"
 
             # Compress the SBOM
-            zstd -19 "$SBOM_FILE" -o "$COMPRESSED_SBOM"
+            BASE64_SBOM_FILE="payload.b64"
+            base64 "$COMPRESSED_SBOM" | tr -d '\n' > "$BASE64_SBOM_FILE"
 
-            # Base64-encode the compressed file
-            BASE64_SBOM=$(base64 "$COMPRESSED_SBOM" | tr -d '\n')
-
-            # Create JSON using jq
             PREDICATE_FILE="wrapped-predicate.json"
+
             jq -n \
               --arg compression "zstd" \
               --arg mediaType "application/spdx+json" \
-              --arg payload "$BASE64_SBOM" \
+              --arg payload "$(cat "$BASE64_SBOM_FILE")" \
               '{compression: $compression, mediaType: $mediaType, payload: $payload}' \
               > "$PREDICATE_FILE"
           fi
