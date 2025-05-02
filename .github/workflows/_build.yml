@@ -397,6 +397,8 @@ jobs:
           COMPRESS: true
           COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          IMAGE_DIGEST: ${{ steps.load-outputs.outputs.DIGEST }}
         run: |
           cd "$(dirname "$SBOM_PATH")"
 
@@ -412,4 +414,4 @@ jobs:
             --predicate "./${PREDICATE_FILE}" \
             --type $TYPE \
             --key env://COSIGN_PRIVATE_KEY \
-            "${IMAGE}@${DIGEST}"
+            "${IMAGE_NAME}@${IMAGE_DIGEST}"
