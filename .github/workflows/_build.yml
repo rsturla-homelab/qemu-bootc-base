@@ -405,7 +405,7 @@ jobs:
           TYPE="spdxjson"
           PREDICATE_FILE="$SBOM_FILE"
 
-          if [[ "${COMPRESS}" ]]; then
+          if [[ -n "${COMPRESS}" ]]; then
             TYPE="urn:rsturla-homelab:attestation:spdx+json+zstd:v1"
             zstd -19 "$SBOM_FILE" -o "${SBOM_FILE}.zst"
             PREDICATE_FILE="${SBOM_FILE}.zst"
