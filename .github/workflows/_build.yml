@@ -400,28 +400,36 @@ jobs:
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
           IMAGE_DIGEST: ${{ steps.load-outputs.outputs.DIGEST }}
         run: |
+          set -euo pipefail
+
           cd "$(dirname "$SBOM_PATH")"
 
           TYPE="spdxjson"
           PREDICATE_FILE="$SBOM_FILE"
 
-          if [[ -n "${COMPRESS}" ]]; then
+          if [[ -n "${COMPRESS:-}" ]]; then
             TYPE="urn:rsturla-homelab:attestation:spdx+json+zstd:v1"
-            zstd -19 "$SBOM_FILE" -o "${SBOM_FILE}.zst"
-            BASE64_SBOM=$(base64 -w0 "${SBOM_FILE}.zst")
-            PREDICATE_FILE="wrapped-predicate.json"
+            COMPRESSED_SBOM="${SBOM_FILE}.zst"
 
-            cat <<EOF > ${PREDICATE_FILE}
-              {
-                "compression": "zstd",
-                "mediaType": "application/spdx+json",
-                "payload": "${BASE64_SBOM}"
-              }
-            EOF
+            # Compress the SBOM
+            zstd -19 "$SBOM_FILE" -o "$COMPRESSED_SBOM"
+
+            # Base64-encode the compressed file
+            BASE64_SBOM=$(base64 "$COMPRESSED_SBOM" | tr -d '\n')
+
+            # Create JSON using jq
+            PREDICATE_FILE="wrapped-predicate.json"
+            jq -n \
+              --arg compression "zstd" \
+              --arg mediaType "application/spdx+json" \
+              --arg payload "$BASE64_SBOM" \
+              '{compression: $compression, mediaType: $mediaType, payload: $payload}' \
+              > "$PREDICATE_FILE"
           fi
 
+          # Attest with Cosign
           cosign attest -y \
             --predicate "./${PREDICATE_FILE}" \
-            --type $TYPE \
+            --type "$TYPE" \
             --key env://COSIGN_PRIVATE_KEY \
             "${IMAGE_NAME}@${IMAGE_DIGEST}"
