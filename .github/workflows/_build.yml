@@ -378,7 +378,7 @@ jobs:
         run: docker pull $IMAGE_NAME@$DIGEST
 
       - name: Generate SBOM
-        uses: rsturla-homelab/actions/generate-sbom@main
+        uses: rsturla-homelab/actions/generate-sbom@sbom-compression-attestation
         id: generate-sbom
         with:
           image-ref: ${{ env.IMAGE_NAME }}@${{ steps.load-outputs.outputs.DIGEST }}
@@ -389,3 +389,27 @@ jobs:
         uses: rsturla-homelab/actions/scan-sbom@main
         with:
           sbom-path: ${{ steps.generate-sbom.outputs.sbom-path }}
+
+      - name: Attest SBOM
+        env: 
+          SBOM_PATH: ${{ steps.generate-sbom.outputs.sbom-path }}
+          SBOM_FILE: ${{ steps.generate-sbom.outputs.sbom-file }}
+          COMPRESS: true
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+        run: |
+          cd "$(dirname "$SBOM_PATH")"
+
+          TYPE="spdxjson"
+          PREDICATE_FILE="$SBOM_FILE"
+
+          if [[ "${COMPRESS}" ]]; then
+            TYPE="urn:rsturla-homelab:attestation:spdx+json+zstd:v1"
+            PREDICATE_FILE="${SBOM_FILE}.zst"
+          fi
+
+          cosign attest -y \
+            --predicate "./${PREDICATE_FILE}" \
+            --type $TYPE \
+            --key env://COSIGN_PRIVATE_KEY \
+            "${IMAGE}@${DIGEST}"
