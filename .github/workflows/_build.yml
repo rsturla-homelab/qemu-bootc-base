@@ -408,7 +408,16 @@ jobs:
           if [[ -n "${COMPRESS}" ]]; then
             TYPE="urn:rsturla-homelab:attestation:spdx+json+zstd:v1"
             zstd -19 "$SBOM_FILE" -o "${SBOM_FILE}.zst"
-            PREDICATE_FILE="${SBOM_FILE}.zst"
+            BASE64_SBOM=$(base64 -w0 "${SBOM_FILE}.zst")
+            PREDICATE_FILE="wrapped-predicate.json"
+
+            cat <<EOF > ${PREDICATE_FILE}
+              {
+                "compression": "zstd",
+                "mediaType": "application/spdx+json",
+                "payload": "${BASE64_SBOM}"
+              }
+            EOF
           fi
 
           cosign attest -y \
