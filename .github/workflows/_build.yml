@@ -378,7 +378,7 @@ jobs:
         run: docker pull $IMAGE_NAME@$DIGEST
 
       - name: Generate SBOM
-        uses: rsturla-homelab/actions/generate-sbom@main
+        uses: rsturla-homelab/actions/generate-sbom@use-application/spdx+json+zstd
         id: generate-sbom
         with:
           image-ref: ${{ env.IMAGE_NAME }}@${{ steps.load-outputs.outputs.DIGEST }}
