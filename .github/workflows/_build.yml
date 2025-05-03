@@ -384,6 +384,7 @@ jobs:
           image-ref: ${{ env.IMAGE_NAME }}@${{ steps.load-outputs.outputs.DIGEST }}
           cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
           cosign-key-passphrase: ${{ secrets.COSIGN_PASSWORD }}
+          compress: true
 
       - name: Scan SBOM
         uses: rsturla-homelab/actions/scan-sbom@main
