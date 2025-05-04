@@ -35,3 +35,5 @@ jobs:
     with:
       image-name: bootc/${{ matrix.target }}/centos-base
       os-version: stream10
+      target: ${{ matrix.target }}
+      base-image-name: centos-stream10

@@ -29,6 +29,15 @@ on:
         description: 'The Containerfile target to build'
         required: false
         type: string
+      base-image-versions-file:
+        description: 'The path to the base image version file'
+        required: false
+        type: string
+        default: './image-versions.yaml'
+      base-image-name:
+        description: 'The base image selector to use'
+        required: false
+        type: string
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ inputs.image-name }}
@@ -92,6 +101,40 @@ jobs:
           is-release: ${{ github.ref == 'refs/heads/main' }}
           arch: ${{ matrix.platform }}
 
+      - name: Query OCI Image Digest
+        if: ${{ inputs.base-image-name != '' }}
+        id: query-base-image
+        env:
+          IMAGE_VERSION_FILE: ${{ inputs.base-image-versions-file }}
+          BASE_IMAGE_NAME: ${{ inputs.base-image-name }}
+        run: |
+          if [[ -f "$IMAGE_VERSION_FILE" ]]; then
+            IMAGE=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\") | .image" $IMAGE_VERSION_FILE)
+            if [[ -z "$IMAGE" ]]; then
+              echo "Image not found in $IMAGE_VERSION_FILE"
+              exit 1
+            fi
+
+            TAG=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\") | .tag" $IMAGE_VERSION_FILE)
+            if [[ -z "$TAG" ]]; then
+              echo "Tag not found in $IMAGE_VERSION_FILE"
+              exit 1
+            fi
+
+            DIGEST=$(yq -r ".images[] | select(.name == \"$BASE_IMAGE_NAME\") | .digest" $IMAGE_VERSION_FILE)
+            if [[ -z "$DIGEST" ]]; then
+              echo "Digest not found in $IMAGE_VERSION_FILE"
+              exit 1
+            fi
+
+            echo "IMAGE=${IMAGE}" >> $GITHUB_OUTPUT
+            echo "TAG=${TAG}" >> $GITHUB_OUTPUT
+            echo "DIGEST=${DIGEST}" >> $GITHUB_OUTPUT
+          else
+            echo "File not found: $IMAGE_VERSION_FILE"
+            exit 1
+          fi
+
       - name: Login to Registry
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -104,6 +147,9 @@ jobs:
           BUILD_ARGS: ${{ inputs.build-args }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
           TARGET: ${{ inputs.target }}
+          BASE_IMAGE_REGISTRY: ${{ steps.query-base-image.outputs.IMAGE }}
+          BASE_IMAGE_TAG: ${{ steps.query-base-image.outputs.TAG }}
+          BASE_IMAGE_DIGEST: ${{ steps.query-base-image.outputs.DIGEST }}
         run: |
           build_args=""
           IFS=' ' read -r -a build_args <<< "$BUILD_ARGS"
@@ -113,6 +159,16 @@ jobs:
 
           if [[ -n "${TARGET}" ]]; then
             build_args="$build_args --target ${TARGET}"
+          fi
+
+          if [[ -n "${BASE_IMAGE_REGISTRY}" ]]; then
+            build_args="$build_args --build-arg BASE_IMAGE_REGISTRY=${BASE_IMAGE_REGISTRY}"
+          fi
+          if [[ -n "${BASE_IMAGE_TAG}" ]]; then
+            build_args="$build_args --build-arg BASE_IMAGE_TAG=${BASE_IMAGE_TAG}"
+          fi
+          if [[ -n "${BASE_IMAGE_DIGEST}" ]]; then
+            build_args="$build_args --build-arg BASE_IMAGE_DIGEST=${BASE_IMAGE_DIGEST}"
           fi
 
           podman build \
@@ -174,7 +230,7 @@ jobs:
       packages: write
       id-token: write
     outputs:
-      IMAGE_NAME: ${{ steps.pull-image.outputs.IMAGE_NAME }}
+      IMAGE_NAME: ${{ steps.push-manifest.outputs.IMAGE_NAME }}
       DIGEST: ${{ steps.push-manifest.outputs.DIGEST }}
     steps:
       - name: Checkout
@@ -190,7 +246,7 @@ jobs:
           echo "OUTPUT_ARTIFACT_PREFIX=${OUTPUT_ARTIFACT_PREFIX}" >> $GITHUB_OUTPUT
 
       - name: Fetch Build Outputs
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: ${{ steps.artifact-prefix.outputs.OUTPUT_ARTIFACT_PREFIX }}*
           merge-multiple: true
@@ -298,7 +354,7 @@ jobs:
           echo "OUTPUT_ARTIFACT_PREFIX=${OUTPUT_ARTIFACT_PREFIX}" >> $GITHUB_OUTPUT
 
       - name: Fetch Build Outputs
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: ${{ steps.artifact-prefix.outputs.OUTPUT_ARTIFACT_PREFIX }}*
           merge-multiple: true
@@ -331,6 +387,7 @@ jobs:
           image-ref: ${{ env.IMAGE_NAME }}@${{ steps.load-outputs.outputs.DIGEST }}
           cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
           cosign-key-passphrase: ${{ secrets.COSIGN_PASSWORD }}
+          compress: true
 
       - name: Scan SBOM
         uses: rsturla-homelab/actions/scan-sbom@main
